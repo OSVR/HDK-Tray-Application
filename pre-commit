@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Copy this into .git/hooks to prevent commits with broken checkbox scaling due to Visual Studio's insistence at setting ImageScalingSize
+
+count=$(grep "System.Drawing.Size(32, 32)" OSVR_TrayApp/OSVR_TrayApp/Source/*.cs | wc -l)
+
+if [ "$count" -ne "0" ]; then
+	echo "Checkbox scaling broken.  Commit rejected!"
+fi
+
+exit "$count"
