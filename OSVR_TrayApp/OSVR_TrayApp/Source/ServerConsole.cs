@@ -38,12 +38,12 @@ namespace HDK_TrayApp
         //[DllImport("user32.dll")]
         //private static extern bool GetScrollRange(IntPtr hWnd, int nBar, out int lpMinPos, out int lpMaxPos);
         #endregion
-        
+
         private object m_lock = new object();   // Note: can't lock(this) because https://social.msdn.microsoft.com/Forums/vstudio/en-us/aa70d091-2a54-4ff8-a012-4e198ff1e01c/controlbegininvoke-will-also-be-blocked?forum=netfxbcl
         private ServerManager m_server;
         private PromptConsoleClosing m_closingPrompt;
         private string m_defaultTitle;
-        public enum ServerStateChange { Start, Restart, Stop }
+        public enum ServerState { Start, Restart, Stop, Crash }
         private static readonly string NL = Environment.NewLine;
 
         #region Window Lifecycle
@@ -62,9 +62,13 @@ namespace HDK_TrayApp
             m_closingPrompt = new PromptConsoleClosing();
 
             m_defaultTitle = Text;
-            Text = m_defaultTitle + " - Stopped";
 
-            UpdateServerLifecycleButtonsAndIcon(serverManager.Running);
+            bool server_is_running = serverManager.serverRunning();
+
+            if (!server_is_running)
+                Text = m_defaultTitle + " - Stopped";
+
+            UpdateServerLifecycleButtonsAndIcon(server_is_running);
 
             FormClosing += ServerConsole_FormClosing;
         }
@@ -79,7 +83,7 @@ namespace HDK_TrayApp
                 {
                     Hide();
 
-                    if (m_server.Running && Properties.Settings.Default.promptServerConsoleClosing)
+                    if (m_server.serverRunning() && Properties.Settings.Default.promptServerConsoleClosing)
                         m_closingPrompt.Show();
                 }
                 catch (ObjectDisposedException) { }
@@ -112,7 +116,7 @@ namespace HDK_TrayApp
             }
         }
 
-        public void ServerStateChanged(ServerStateChange change)
+        public void ServerStateChanged(ServerState change)
         {
             lock (m_lock)
             {
@@ -127,22 +131,25 @@ namespace HDK_TrayApp
 
                                 switch (change)
                                 {
-                                    case ServerStateChange.Start:
+                                    case ServerState.Start:
                                         change_message = "started";
-                                        UpdateServerLifecycleButtonsAndIcon(true);
-                                        Text = m_defaultTitle + " - Running";
+                                        UpdateServerConsoleUIState(change);
                                         break;
 
-                                    case ServerStateChange.Restart:
+                                    case ServerState.Restart:
                                         change_message = "restarted";
-                                        UpdateServerLifecycleButtonsAndIcon(true);
-                                        Text = m_defaultTitle + " - Running";
+                                        UpdateServerConsoleUIState(change);
                                         break;
 
-                                    case ServerStateChange.Stop:
+                                    case ServerState.Crash:
+                                        change_message = "crashed";
+                                        UpdateServerConsoleUIState(change);
+                                        break;
+
+                                    case ServerState.Stop:
+                                        m_server.ServerLastState = false;
                                         change_message = "stopped";
-                                        UpdateServerLifecycleButtonsAndIcon(false);
-                                        Text = m_defaultTitle + " - Stopped";
+                                        UpdateServerConsoleUIState(change);
                                         break;
 
                                     default:
@@ -158,6 +165,24 @@ namespace HDK_TrayApp
                 {
                     Debug.WriteLine("Unable to log message to console:\n" + e.Message + "\n" + e.StackTrace);
                 }
+            }
+        }
+
+        public void UpdateServerConsoleUIState(ServerState state)
+        {
+            if (state == ServerState.Start || state == ServerState.Restart)
+            {
+                UpdateServerLifecycleButtonsAndIcon(true);
+            }
+            else if (state == ServerState.Crash)
+            {
+                UpdateServerLifecycleButtonsAndIcon(false);
+                Text = m_defaultTitle + " - Crashed";
+            }
+            else
+            {
+                UpdateServerLifecycleButtonsAndIcon(false);
+                Text = m_defaultTitle + " - Stopped";
             }
         }
 
@@ -204,7 +229,7 @@ namespace HDK_TrayApp
         #region UI Event Handlers
         private void startServerButton_Click(object sender, EventArgs e)
         {
-            if (!m_server.Running)
+            if (!m_server.serverRunning())
                 m_server.StartServer();
             else
                 m_server.RestartServer();
@@ -212,13 +237,13 @@ namespace HDK_TrayApp
 
         private void restartServerButton_Click(object sender, EventArgs e)
         {
-            if (m_server.Running)
+            if (m_server.serverRunning())
                 m_server.RestartServer();
         }
 
         private void stopServerButton_Click(object sender, EventArgs e)
         {
-            if (m_server.Running)
+            if (m_server.serverRunning())
                 m_server.StopServer();
         }
 
@@ -304,6 +329,7 @@ namespace HDK_TrayApp
                 restartServerButton.Enabled = true;
                 stopServerButton.Enabled = true;
                 recenterButton.Enabled = true;
+                Text = m_defaultTitle + " - Running";
             }
             else
             {

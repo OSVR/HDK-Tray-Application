@@ -97,8 +97,10 @@ namespace HDK_TrayApp
             bool msg_trayapp_already_running = trayapp_running && !start_server_arg;
             bool msg_both_already_running = trayapp_running && start_server_arg && server_running;
             
-            if (msg_unmanaged_server_already_running)
+            /// No longer needed warning as server-manager has fault-tolerance
+            /*if (msg_unmanaged_server_already_running)
                 Common.ShowMessageBox(Common.MSG_SERVER_ALREADY_RUNNING_UMANAGED, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            */
 
             if (msg_trayapp_already_running)
                 Common.ShowMessageBox(Common.MSG_TRAYAPP_ALREADY_RUNNING, MessageBoxButtons.OK, MessageBoxIcon.Warning);

@@ -56,7 +56,7 @@ namespace HDK_TrayApp
             useIRCameraToolStripMenuItem.Enabled = !customServerConfigurationToolStripMenuItem.Checked;
 
             if (start_server)
-                m_server.StartServer();
+                m_server.RestartServer();
 
             if (SteamVRConfig.IsLegacyOSVRDriverInstalled())
                 Common.ShowMessageBox(Common.MSG_STEAMVR_OSVR_LEGACY_DRIVER_DETECTED, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
@@ -138,7 +138,7 @@ namespace HDK_TrayApp
         /// <param name="e"></param>
         private void OSVRContextMenuStrip_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (m_server.Running)
+            if (m_server.serverRunning())
             {
                 startServerToolStripMenuItem.Enabled = false;
                 restartServerToolStripMenuItem.Enabled = true;
@@ -187,7 +187,7 @@ namespace HDK_TrayApp
         /// <param name="e"></param>
         private void startServerToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (!m_server.Running)
+            if (!m_server.serverRunning())
                 m_server.StartServer();
             else
                 m_server.PromptServerRestartAlreadyRunning();
@@ -220,7 +220,7 @@ namespace HDK_TrayApp
         /// <param name="e"></param>
         private void showServerConsoleToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            ShowServerConsole();
+            m_server.ShowServerConsole();
         }
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace HDK_TrayApp
         /// <param name="e"></param>
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (m_server.Running)
+            if (m_server.serverRunning())
                 m_server.StopServer();
 
             OSVRProcessManager.KillProcessByName(Common.TRACKER_VIEW_NAME);

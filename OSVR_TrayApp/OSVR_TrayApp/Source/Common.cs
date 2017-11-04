@@ -25,6 +25,8 @@ namespace HDK_TrayApp
                                       REGISTRY_INSTALL_DIRECTORY_KEY = "InstallationDirectory",
                                       REGISTRY_VERSION_KEY = "InstalledVersion";
 
+        public static readonly string ENVIRONMENT_VAR_INSTALL_DIRECTORY = "OSVR_INSTALL_DIR";
+
         public static readonly string TRAY_APP_NAME = "HDK_TrayApp.exe",
                                       SERVICE_NAME = "osvr_server.exe",
                                       TRACKER_VIEW_NAME = "OSVRTrackerView.exe",
