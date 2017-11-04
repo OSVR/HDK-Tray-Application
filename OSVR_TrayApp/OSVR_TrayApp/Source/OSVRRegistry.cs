@@ -13,6 +13,7 @@
 // limitations under the License.
 
 using Microsoft.Win32;
+using System;
 
 namespace HDK_TrayApp
 {
@@ -30,15 +31,22 @@ namespace HDK_TrayApp
         {
             string installDirectory = string.Empty;
 
-            RegistryKey registryKey = Registry.LocalMachine.OpenSubKey(Common.REGISTRY_SUB_KEY, false);
+            /// First try to get the directory from the environment variable so as to keep
+            /// consistent with OSVR-Server. If null, then check registry.
+            installDirectory = Environment.GetEnvironmentVariable(Common.ENVIRONMENT_VAR_INSTALL_DIRECTORY);
 
-            if (registryKey != null)
+            if (installDirectory == null)
             {
-                object registryValue = registryKey.GetValue(Common.REGISTRY_INSTALL_DIRECTORY_KEY);
+                RegistryKey registryKey = Registry.LocalMachine.OpenSubKey(Common.REGISTRY_SUB_KEY, false);
 
-                if (registryKey.GetValueKind(Common.REGISTRY_INSTALL_DIRECTORY_KEY) == RegistryValueKind.String)
+                if (registryKey != null)
                 {
-                    installDirectory = registryValue as string;
+                    object registryValue = registryKey.GetValue(Common.REGISTRY_INSTALL_DIRECTORY_KEY);
+
+                    if (registryKey.GetValueKind(Common.REGISTRY_INSTALL_DIRECTORY_KEY) == RegistryValueKind.String)
+                    {
+                        installDirectory = registryValue as string;
+                    }
                 }
             }
 

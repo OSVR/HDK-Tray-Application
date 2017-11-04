@@ -140,7 +140,7 @@ namespace HDK_TrayApp
             this.showServerConsoleToolStripMenuItem.Name = "showServerConsoleToolStripMenuItem";
             this.showServerConsoleToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
             this.showServerConsoleToolStripMenuItem.Text = "Show Server Console";
-            this.showServerConsoleToolStripMenuItem.Visible = false;
+            this.showServerConsoleToolStripMenuItem.Visible = true;
             this.showServerConsoleToolStripMenuItem.Click += new System.EventHandler(this.showServerConsoleToolStripMenuItem_Click);
             // 
             // OSVRServerToolStripSeparator

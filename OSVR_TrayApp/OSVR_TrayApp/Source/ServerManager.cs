@@ -26,15 +26,27 @@ namespace HDK_TrayApp
 
         private PromptStartServerConsoleOpening m_startServerOnConsoleOpenPrompt;
 
+        public static System.Windows.Forms.Timer serverWatchdog = new System.Windows.Forms.Timer();
+
         public bool ConsoleVisible { get { return m_console.Visible; } }
 
-        public bool Running { get { return OSVRProcessManager.ProcessInstanceIsRunning(Common.SERVICE_NAME); } }
+        public bool ServerLastState;
+
+        public bool serverRunning() {
+            ServerLastState = OSVRProcessManager.ProcessInstanceIsRunning(Common.SERVICE_NAME);
+            return ServerLastState;
+        }
 
         private object m_lock = new object();
         private bool m_showingPrompt = false;
 
         public ServerManager(ContextMenuWYSIWYG contextMenu)
         {
+            serverWatchdog.Tick += new EventHandler(serverWatchdogTimer_Handler);
+            serverWatchdog.Interval = 2000;
+            serverWatchdog.Enabled = true;
+            serverWatchdog.Start();
+
             m_contextMenu = contextMenu;
             m_console = new ServerConsole(this);
             m_startServerOnConsoleOpenPrompt = new PromptStartServerConsoleOpening(this);
@@ -124,15 +136,38 @@ namespace HDK_TrayApp
             }
 
             if (!m_console.Visible)
-                m_console.Show();
+                ShowServerConsole();
 
-            m_console.ServerStateChanged(restart ? ServerConsole.ServerStateChange.Restart : ServerConsole.ServerStateChange.Start);
+            m_console.ServerStateChanged(restart ? ServerConsole.ServerState.Restart : ServerConsole.ServerState.Start);
 
+            server.BeginOutputReadLine();
+            server.BeginErrorReadLine();
             server.EnableRaisingEvents = true;
             server.OutputDataReceived += Server_OutputDataReceived;
             server.ErrorDataReceived += Server_ErrorDataReceived;
-            server.BeginOutputReadLine();
-            server.BeginErrorReadLine();
+        }
+
+        private void serverWatchdogTimer_Handler(object sender, EventArgs e)
+        {
+            serverWatchdog.Stop();
+            CheckServerStatus();
+            serverWatchdog.Start();
+        }
+
+        /// <summary>
+        /// Show console
+        /// </summary>
+        public void ShowServerConsole()
+        {
+            m_console.Show();
+        }
+
+        /// <summary>
+        /// Hide console
+        /// </summary>
+        public void HideServerConsole()
+        {
+            m_console.Hide();
         }
 
         /// <summary>
@@ -140,11 +175,11 @@ namespace HDK_TrayApp
         /// </summary>
         public bool StopServer()
         {
-            if (Running)
+            if (serverRunning())
             {
                 if (OSVRProcessManager.KillProcessByName(Common.SERVICE_NAME) > 0)
                 {
-                    m_console.ServerStateChanged(ServerConsole.ServerStateChange.Stop);
+                    m_console.ServerStateChanged(ServerConsole.ServerState.Stop);
                     return true;
                 }
                 else
@@ -164,6 +199,38 @@ namespace HDK_TrayApp
         }
 
         /// <summary>
+        /// Check for server and update UI and state to reflect server status
+        /// </summary>
+        public bool CheckServerStatus()
+        {
+            bool OldServerState = ServerLastState;
+            bool NewServerState = serverRunning();
+
+            if (NewServerState != OldServerState)
+            {
+                if (NewServerState)
+                {
+                    m_console.UpdateServerConsoleUIState(ServerConsole.ServerState.Start);
+                    return true;
+                }
+                else if(NewServerState == false && OldServerState == true)
+                {
+                    m_console.ServerStateChanged(ServerConsole.ServerState.Crash);
+                    m_console.UpdateServerConsoleUIState(ServerConsole.ServerState.Crash);
+                    return false;
+                }
+                else
+                {
+                    m_console.UpdateServerConsoleUIState(ServerConsole.ServerState.Stop);
+                    return false;
+                }
+            }
+
+            return NewServerState;
+            ///CheckServerStatus 
+        }
+
+        /// <summary>
         /// Prompt the user to restart the OSVR server if it's running or start it if it's not
         /// </summary>
         public void PromptServerStartOrRestart()
@@ -176,7 +243,7 @@ namespace HDK_TrayApp
                 m_showingPrompt = true;
             }
 
-            if (Running)
+            if (serverRunning())
             {
                 DialogResult askToResetServer = Common.ShowMessageBox(Common.MSG_RESET_SERVER, MessageBoxButtons.YesNo, MessageBoxIcon.Question, true);
 
@@ -217,6 +284,7 @@ namespace HDK_TrayApp
         {
             m_console.DataReceived(e.Data, true);
 
+            /// There is probably a better way to handle this...
             if (e.Data != null && e.Data.Contains("WARNING - Your HDK infrared tracking camera was detected to have outdated firmware in need of updating, and may not function properly."))
             {
                 string osvrPath = OSVRRegistry.GetInstallDirectoryFromRegistry();
@@ -261,7 +329,7 @@ namespace HDK_TrayApp
         {
             m_console.Show();
 
-            if (!Running && prompt_to_start)
+            if (!serverRunning() && prompt_to_start)
             {
                 if (Properties.Settings.Default.promptServerConsoleOpening)
                     m_startServerOnConsoleOpenPrompt.ShowDialog();
